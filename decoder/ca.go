@@ -1,11 +1,13 @@
-package main
+package decoder
 
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"github.com/iamwwc/tlsmiddleman/common"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -13,10 +15,12 @@ import (
 	"time"
 )
 
+type Factory func(host string) (*Certificate, error)
 type Certificate struct {
 	certificate *x509.Certificate
 	derBytes    []byte
-	privateKey  *PrivateKey
+	// 创建证书时使用的public key对应的 private key
+	privateKey *PrivateKey
 }
 
 func (this *Certificate) pemBlock() *pem.Block {
@@ -35,10 +39,11 @@ func (this *Certificate) WriteToFile(path string) error {
 }
 
 type CertificateAuthority struct {
-	config      *RuntimeConfig
-	tlsConfig   *TLSConfig
-	privateKey  *PrivateKey
-	certificate *Certificate
+	config          *RuntimeConfig
+	tlsConfig       *TLSConfig
+	privateKey      *PrivateKey
+	x509Certificate *Certificate
+	Sign            func(host string) (*Certificate, error)
 }
 
 func NewCA(config *RuntimeConfig, tlsConfig *TLSConfig) *CertificateAuthority {
@@ -47,6 +52,7 @@ func NewCA(config *RuntimeConfig, tlsConfig *TLSConfig) *CertificateAuthority {
 		tlsConfig: tlsConfig,
 	}
 	ca.generateSelfSignCertificate()
+	ca.Sign = ca.createdCertificateFor(ca.x509Certificate.certificate, ca.privateKey, tlsConfig.Organization, false)
 	return ca
 }
 
@@ -81,35 +87,40 @@ func (this *CertificateAuthority) LoadCertificateFromFile(path string) (*Certifi
 	}, nil
 }
 
-func (this *CertificateAuthority) CreatedCertificateFor(organization, host string, isCA bool, issuer *x509.Certificate, pk *PrivateKey) (*Certificate, error) {
-	template := &x509.Certificate{
-		SerialNumber: new(big.Int).SetInt64(int64(time.Now().UnixNano())),
-		Subject: pkix.Name{
-			Organization: []string{organization},
-			CommonName:   host,
-		},
-		DNSNames:  []string{host},
-		NotBefore: time.Now().AddDate(0, -1, 0),
-		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		template.IPAddresses = []net.IP{ip}
-	}
-	if isCA {
-		template.IsCA = true
-		template.KeyUsage = template.KeyUsage | x509.KeyUsageCertSign
-	}
-	isSelfSign := issuer == nil
-	clientPair, err := this.GeneratePrivateKey(2048)
-	if err != nil {
-		return nil, err
-	}
-	if isSelfSign {
-		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth | x509.ExtKeyUsageClientAuth}
-	}
+func (this *CertificateAuthority) ToTLSCertificate(cert *Certificate) (tls.Certificate, error) {
+	return tls.X509KeyPair(cert.derBytes, cert.privateKey.PemDecoded())
+}
 
-	return this.doCreateCertificate(template, issuer, clientPair, pk)
+func (this *CertificateAuthority) createdCertificateFor(issuer *x509.Certificate, pk *PrivateKey, organization string, isCA bool) Factory {
+	return func(host string) (*Certificate, error) {
+		template := &x509.Certificate{
+			SerialNumber: new(big.Int).SetInt64(int64(time.Now().UnixNano())),
+			Subject: pkix.Name{
+				Organization: []string{organization},
+				CommonName:   host,
+			},
+			DNSNames:  []string{host},
+			NotBefore: time.Now().AddDate(0, -1, 0),
+			NotAfter:  time.Now().Add(time.Hour * 24 * 365),
+			KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		}
+		if ip := net.ParseIP(host); ip != nil {
+			template.IPAddresses = []net.IP{ip}
+		}
+		if isCA {
+			template.IsCA = true
+			template.KeyUsage = template.KeyUsage | x509.KeyUsageCertSign
+		}
+		isSelfSign := issuer == nil
+		clientPair, err := this.GeneratePrivateKey(2048)
+		if err != nil {
+			return nil, err
+		}
+		if isSelfSign {
+			template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth | x509.ExtKeyUsageClientAuth}
+		}
+		return this.doCreateCertificate(template, issuer, clientPair, pk)
+	}
 }
 
 // 如果自签CA证书，pkOfClient == pk
@@ -150,14 +161,14 @@ func (this *CertificateAuthority) generateSelfSignCertificate() {
 		if this.privateKey, err = this.GeneratePrivateKey(this.tlsConfig.KeyLen); err != nil {
 			panic(err)
 		}
-		Must(this.privateKey.WriteToFile(this.tlsConfig.CAPrivateKeyFilePath))
+		common.Must(this.privateKey.WriteToFile(this.tlsConfig.CAPrivateKeyFilePath))
 	}
-	if this.certificate, err = this.LoadCertificateFromFile(this.tlsConfig.CACertificateFilePath); err != nil {
+	if this.x509Certificate, err = this.LoadCertificateFromFile(this.tlsConfig.CACertificateFilePath); err != nil {
 		c := this.tlsConfig
-		if this.certificate, err = this.CreatedCertificateFor(c.Organization, c.CommonName, true, nil); err != nil {
+		if this.x509Certificate, err = this.createdCertificateFor(nil, this.privateKey, c.Organization, true)(c.CommonName); err != nil {
 			panic(err)
 		}
-		Must(this.certificate.WriteToFile(c.CACertificateFilePath))
+		common.Must(this.x509Certificate.WriteToFile(c.CACertificateFilePath))
 	}
 }
 
