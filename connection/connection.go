@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"time"
 )
 
 func NewConnectionHandler(w http.ResponseWriter, r *http.Request, interceptor *Interceptor, conn *net.Conn) *Handler {
@@ -40,10 +41,8 @@ func (this *Handler) TLSHandshake() {
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
 	tlsConn := tls.Server(this.conn, tlsConfig)
 	this.conn = tlsConn
-	handler := http.HandlerFunc(func(resp http.ResponseWriter, r *http.Request) {
-		this.Pipe()
-	})
-	http.Serve(this, handler)
+	tlsConn.Handshake()
+	go this.Pipe()
 }
 
 // Pipe处理裸HTTP，并向remote转发数据
@@ -52,6 +51,32 @@ func (this *Handler) TLSHandshake() {
 // ResponseWriter 和 Request 都放在 this 上
 func (this *Handler) Pipe() {
 
+}
+
+func (this Handler) connectToRemote() {
+	c := make(chan []byte, 1)
+	go func() {
+		target := this.request.URL.Host
+		port := this.request.URL.Port()
+		var conn net.Conn
+		var err error
+		if port == "443" {
+			conn, err = tls.Dial("tcp",target, decoder.NewDefaultServerTlsConfig())
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}else {
+			conn, err = net.DialTimeout("tcp",target, time.Second * 60)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+		for {
+			conn.Write(<- c)
+		}
+	}()
 }
 
 func (this *Handler) Accept() (net.Conn, error) {
