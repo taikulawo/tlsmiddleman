@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/iamwwc/tlsmiddleman/common"
 	"github.com/iamwwc/tlsmiddleman/decoder"
+	"github.com/iamwwc/tlsmiddleman/replicant"
 	"io"
 	"net"
 	"net/http"
@@ -42,7 +43,10 @@ func (this *Handler) TLSHandshake() {
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
 	tlsConn := tls.Server(this.conn, tlsConfig)
 	this.conn = tlsConn
-	tlsConn.Handshake()
+	if err := tlsConn.Handshake(); err != nil {
+		fmt.Println(err)
+		return
+	}
 	go this.Pipe()
 }
 
@@ -58,9 +62,12 @@ func (this *Handler) Pipe() {
 	}
 	chan1 := common.ChannelFromConn(this.conn)
 	chan2 := common.ChannelFromConn(remote)
+	reqChan, respChan := replicant.Dump()
 	defer func() {
 		remote.Close()
 		this.conn.Close()
+		reqChan <- nil
+		respChan <- nil
 	}()
 	for {
 		select {
@@ -68,11 +75,13 @@ func (this *Handler) Pipe() {
 			if b1 == nil {
 				return
 			}
+			respChan <- b1
 			remote.Write(b1)
 		case b2 := <- chan2:
 			if b2 == nil {
 				return
 			}
+			reqChan <- b2
 			this.conn.Write(b2)
 		}
 	}

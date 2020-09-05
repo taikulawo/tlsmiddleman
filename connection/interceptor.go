@@ -19,7 +19,7 @@ func (this *Interceptor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		this.PerformTLSHandshake(w, r)
 		return
 	}
-	go NewConnectionHandler(w, r, this, nil)
+	go NewConnectionHandler(w, r, this, nil).Pipe()
 }
 
 func (this *Interceptor) PerformTLSHandshake(w http.ResponseWriter, r *http.Request) {
