@@ -2,23 +2,36 @@ package replicant
 
 import (
 	"bufio"
-	"io"
-	"net"
+	"fmt"
+	"github.com/iamwwc/tlsmiddleman/common"
+	"net/http"
 )
 
-type Replicant struct {
-	conn net.Conn
-	remote net.Conn
-}
-
-func (this *Replicant) DumpRequest(from, to net.Conn, c <- chan []byte) *bufio.Reader {
-	reader, writer := io.Pipe()
+func Dump() (requestChan chan []byte, responseChan chan []byte) {
+	requestChan = make(chan []byte)
+	reqC := make(chan *http.Request, 2)
 	go func() {
 		for {
-			b := make([]byte, 1024)
-			from.Read(b)
-			writer.Write(b)
+			reader := common.NewReaderHelper(requestChan)
+			req, err := http.ReadRequest(bufio.NewReader(reader))
+			reqC <- req
+			if err != nil {
+				return
+			}
+			fmt.Printf("Request: Header: %s\n",req.Header)
 		}
 	}()
-	return bufio.NewReader(reader)
+	responseChan = make(chan []byte)
+	go func() {
+		for {
+			reader := common.NewReaderHelper(responseChan)
+			req := <- reqC
+			resp, err := http.ReadResponse(bufio.NewReader(reader),req)
+			if err != nil {
+				return
+			}
+			fmt.Printf("Response: Header: %s",resp.Header)
+		}
+	}()
+	return
 }

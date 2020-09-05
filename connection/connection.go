@@ -1,8 +1,10 @@
 package connection
 
 import (
+	"bufio"
 	"crypto/tls"
 	"fmt"
+	"github.com/iamwwc/tlsmiddleman/common"
 	"github.com/iamwwc/tlsmiddleman/decoder"
 	"io"
 	"net"
@@ -50,11 +52,35 @@ func (this *Handler) TLSHandshake() {
 // 如果是HTTP直接转发就行
 // ResponseWriter 和 Request 都放在 this 上
 func (this *Handler) Pipe() {
-
+	remote := <- this.connectToRemote()
+	if remote == nil {
+		fmt.Println("Connect to remote failed, return")
+		return
+	}
+	chan1 := common.ChannelFromConn(this.conn)
+	chan2 := common.ChannelFromConn(remote)
+	defer func() {
+		remote.Close()
+		this.conn.Close()
+	}()
+	for {
+		select {
+		case b1 := <-chan1:
+			if b1 == nil {
+				return
+			}
+			remote.Write(b1)
+		case b2 := <- chan2:
+			if b2 == nil {
+				return
+			}
+			this.conn.Write(b2)
+		}
+	}
 }
 
-func (this Handler) connectToRemote() {
-	c := make(chan []byte, 1)
+func (this Handler) connectToRemote() <- chan net.Conn{
+	c := make(chan net.Conn,1)
 	go func() {
 		target := this.request.URL.Host
 		port := this.request.URL.Port()
@@ -64,19 +90,28 @@ func (this Handler) connectToRemote() {
 			conn, err = tls.Dial("tcp",target, decoder.NewDefaultServerTlsConfig())
 			if err != nil {
 				fmt.Println(err)
+				c <- nil
 				return
 			}
 		}else {
 			conn, err = net.DialTimeout("tcp",target, time.Second * 60)
 			if err != nil {
 				fmt.Println(err)
+				c <- nil
 				return
 			}
 		}
-		for {
-			conn.Write(<- c)
-		}
+		c <- conn
 	}()
+	return c
+}
+
+func (this *Handler) dumpHTTPRequest(request *common.ReaderHelper)  {
+	req, err := http.ReadRequest(bufio.NewReader(request))
+	if err != nil {
+		return
+	}
+	fmt.Println(req.Host)
 }
 
 func (this *Handler) Accept() (net.Conn, error) {

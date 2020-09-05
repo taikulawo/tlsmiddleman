@@ -1,14 +1,9 @@
 package common
 
 import (
-	"bufio"
-	"bytes"
-	"io"
+	"errors"
+	"net"
 )
-
-func NewSliceWriter() *bytes.Buffer {
-	return &bytes.Buffer{}
-}
 
 func Must(err error) {
 	if err != nil {
@@ -21,18 +16,43 @@ func Must2(r interface{}, err error) interface{} {
 	return r
 }
 
-func ReaderAndWriter(rw io.ReadWriter) (c1,c2 chan[]byte) {
-	c1 := make(chan []byte,1)
-	c2 := make(chan []byte,1)
-	bufio.NewWriter()
-	bufio.NewReader()
+// ReadHelper
+type ReaderHelper struct {
+	input <- chan []byte
+}
+
+func (this *ReaderHelper) Read(b []byte) (int, error) {
+	m := <- this.input
+	if m == nil {
+		return 0, errors.New("error in ReaderHelper")
+	}
+	copy(b, m)
+	return len(m), nil
+}
+
+func NewReaderHelper(c <- chan []byte) *ReaderHelper {
+	return &ReaderHelper{
+		input: c,
+	}
+}
+
+// 从Conn获取channel
+func ChannelFromConn(conn net.Conn) chan []byte{
+	c := make(chan []byte)
 	go func() {
-		rw.Write(<- c1)
-	}()
-	go func() {
-		_, err := rw.Read(<- c2)
-		if err != nil {
+		b := make([]byte, 1024)
+		for {
+			n, err := conn.Read(b)
+			if n >0 {
+				sent := make([]byte, n)
+				copy(sent, b[:n])
+				c <- sent
+			}
+			if err != nil {
+				c <- nil
+				break
+			}
 		}
 	}()
-	return c1, c2
+	return c
 }

@@ -52,7 +52,7 @@ func NewCA(config *RuntimeConfig, tlsConfig *TLSConfig) *CertificateAuthority {
 		tlsConfig: tlsConfig,
 	}
 	ca.generateSelfSignCertificate()
-	ca.Sign = ca.createdCertificateFor(ca.x509Certificate.certificate, ca.privateKey, tlsConfig.Organization, false)
+	ca.Sign = ca.createCertificateFor(ca.x509Certificate.certificate, ca.privateKey, tlsConfig.Organization, false)
 	return ca
 }
 
@@ -91,7 +91,7 @@ func (this *CertificateAuthority) ToTLSCertificate(cert *Certificate) (tls.Certi
 	return tls.X509KeyPair(cert.derBytes, cert.privateKey.PemDecoded())
 }
 
-func (this *CertificateAuthority) createdCertificateFor(issuer *x509.Certificate, pk *PrivateKey, organization string, isCA bool) Factory {
+func (this *CertificateAuthority) createCertificateFor(issuer *x509.Certificate, pk *PrivateKey, organization string, isCA bool) Factory {
 	return func(host string) (*Certificate, error) {
 		template := &x509.Certificate{
 			SerialNumber: new(big.Int).SetInt64(int64(time.Now().UnixNano())),
@@ -165,7 +165,7 @@ func (this *CertificateAuthority) generateSelfSignCertificate() {
 	}
 	if this.x509Certificate, err = this.LoadCertificateFromFile(this.tlsConfig.CACertificateFilePath); err != nil {
 		c := this.tlsConfig
-		if this.x509Certificate, err = this.createdCertificateFor(nil, this.privateKey, c.Organization, true)(c.CommonName); err != nil {
+		if this.x509Certificate, err = this.createCertificateFor(nil, this.privateKey, c.Organization, true)(c.CommonName); err != nil {
 			panic(err)
 		}
 		common.Must(this.x509Certificate.WriteToFile(c.CACertificateFilePath))
