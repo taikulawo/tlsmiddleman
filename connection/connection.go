@@ -1,7 +1,6 @@
 package connection
 
 import (
-	"bufio"
 	"crypto/tls"
 	"fmt"
 	"github.com/iamwwc/tlsmiddleman/common"
@@ -104,14 +103,6 @@ func (this Handler) connectToRemote() <- chan net.Conn{
 		c <- conn
 	}()
 	return c
-}
-
-func (this *Handler) dumpHTTPRequest(request *common.ReaderHelper)  {
-	req, err := http.ReadRequest(bufio.NewReader(request))
-	if err != nil {
-		return
-	}
-	fmt.Println(req.Host)
 }
 
 func (this *Handler) Accept() (net.Conn, error) {
