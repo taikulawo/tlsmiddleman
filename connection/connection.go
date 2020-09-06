@@ -6,16 +6,18 @@ import (
 	"github.com/iamwwc/tlsmiddleman/common"
 	"github.com/iamwwc/tlsmiddleman/decoder"
 	"github.com/iamwwc/tlsmiddleman/replicant"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
-func NewConnectionHandler(w http.ResponseWriter, r *http.Request, interceptor *Interceptor, conn *net.Conn) *Handler {
+func NewConnectionHandler(w http.ResponseWriter, r *http.Request, interceptor *Interceptor, conn net.Conn) *Handler {
 	return &Handler{
 		interceptor,
-		*conn,
+		conn,
 		w,
 		r,
 	}
@@ -32,19 +34,19 @@ func (this *Handler) TLSHandshake() {
 	tlsConfig := decoder.NewDefaultServerTlsConfig()
 	cert, err := this.interceptor.CA.Sign(this.request.Host)
 	if err != nil {
-		fmt.Println(err)
+		logrus.Errorln(err)
 		return
 	}
 	tlsCert, err := this.interceptor.CA.ToTLSCertificate(cert)
 	if err != nil {
-		fmt.Println(err)
+		logrus.Errorln(err)
 		return
 	}
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
 	tlsConn := tls.Server(this.conn, tlsConfig)
 	this.conn = tlsConn
 	if err := tlsConn.Handshake(); err != nil {
-		fmt.Println(err)
+		logrus.Errorln(err)
 		return
 	}
 	go this.Pipe()
@@ -92,19 +94,22 @@ func (this Handler) connectToRemote() <- chan net.Conn{
 	go func() {
 		target := this.request.URL.Host
 		port := this.request.URL.Port()
+		if strings.Contains(target,":") {
+			target += ":"+port
+		}
 		var conn net.Conn
 		var err error
 		if port == "443" {
 			conn, err = tls.Dial("tcp",target, decoder.NewDefaultServerTlsConfig())
 			if err != nil {
-				fmt.Println(err)
+				logrus.Errorln(err)
 				c <- nil
 				return
 			}
 		}else {
 			conn, err = net.DialTimeout("tcp",target, time.Second * 60)
 			if err != nil {
-				fmt.Println(err)
+				logrus.Errorln(err)
 				c <- nil
 				return
 			}

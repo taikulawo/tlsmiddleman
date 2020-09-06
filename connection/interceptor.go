@@ -33,7 +33,7 @@ func (this *Interceptor) PerformTLSHandshake(w http.ResponseWriter, r *http.Requ
 	go NewConnectionHandler(w, r, this, conn).TLSHandshake()
 }
 
-func (this Interceptor) Hijacker(w http.ResponseWriter) (*net.Conn, error) {
+func (this Interceptor) Hijacker(w http.ResponseWriter) (net.Conn, error) {
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		return nil, errors.New("unable to hijacker connection from HTTP")
@@ -42,7 +42,7 @@ func (this Interceptor) Hijacker(w http.ResponseWriter) (*net.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to take over the TCP connection from hihacker %s", err)
 	}
-	return &conn, nil
+	return conn, nil
 }
 
 func NewInterceptor(c *decoder.RuntimeConfig, tlsConfig *decoder.TLSConfig) (i *Interceptor) {

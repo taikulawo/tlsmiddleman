@@ -8,7 +8,7 @@ type RuntimeConfig struct {
 }
 
 type TLSConfig struct {
-	RsaKeyPair            PrivateKey // CA key pair
+	RsaKeyPair            *PrivateKey // CA key pair
 	CAPrivateKeyFilePath  string
 	CACertificateFilePath string
 	Organization          string
@@ -44,10 +44,11 @@ func NewDefaultServerTlsConfig() *tls.Config {
 func NewDefaultTLSConfig() *TLSConfig {
 	return &TLSConfig{
 		RsaKeyPair:            nil,
-		CAPrivateKeyFilePath:  "x509Certificate.cert",
-		CACertificateFilePath: "private.key",
+		CAPrivateKeyFilePath:  "private.key",
+		CACertificateFilePath: "x509cert.cert",
 		Organization:          "bytejump",
 		CommonName:            "www.bytejump.com",
 		ServerTLSConfig:       NewDefaultServerTlsConfig(),
+		KeyLen: 4096,
 	}
 }

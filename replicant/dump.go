@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/iamwwc/tlsmiddleman/common"
+	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -34,6 +35,7 @@ func Dump() (requestChan chan []byte, responseChan chan []byte) {
 			req := <- reqC
 			resp, err := http.ReadResponse(bufio.NewReader(reader),req)
 			if err != nil {
+				logrus.Errorln(err)
 				return
 			}
 			fmt.Printf("Response: Header: %s",resp.Header)

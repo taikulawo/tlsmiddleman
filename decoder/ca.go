@@ -30,6 +30,10 @@ func (this *Certificate) pemBlock() *pem.Block {
 	}
 }
 
+func (this *Certificate) PemDecoded() []byte {
+	return pem.EncodeToMemory(this.pemBlock())
+}
+
 func (this *Certificate) WriteToFile(path string) error {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -59,6 +63,7 @@ func NewCA(config *RuntimeConfig, tlsConfig *TLSConfig) *CertificateAuthority {
 func (this *CertificateAuthority) LoadPkFromFile(filePath string) (*PrivateKey, error) {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
+		// err == os.ErrNotExist
 		return nil, err
 	}
 	block, _ := pem.Decode(data)
@@ -88,7 +93,7 @@ func (this *CertificateAuthority) LoadCertificateFromFile(path string) (*Certifi
 }
 
 func (this *CertificateAuthority) ToTLSCertificate(cert *Certificate) (tls.Certificate, error) {
-	return tls.X509KeyPair(cert.derBytes, cert.privateKey.PemDecoded())
+	return tls.X509KeyPair(cert.PemDecoded(), cert.privateKey.PemDecoded())
 }
 
 func (this *CertificateAuthority) createCertificateFor(issuer *x509.Certificate, pk *PrivateKey, organization string, isCA bool) Factory {
@@ -118,6 +123,7 @@ func (this *CertificateAuthority) createCertificateFor(issuer *x509.Certificate,
 		}
 		if isSelfSign {
 			template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth | x509.ExtKeyUsageClientAuth}
+			issuer = template
 		}
 		return this.doCreateCertificate(template, issuer, clientPair, pk)
 	}
