@@ -77,13 +77,13 @@ func (this *Handler) Pipe() {
 			if b1 == nil {
 				return
 			}
-			respChan <- b1
+			respChan <- b1[:]
 			remote.Write(b1)
 		case b2 := <- chan2:
 			if b2 == nil {
 				return
 			}
-			reqChan <- b2
+			reqChan <- b2[:]
 			this.conn.Write(b2)
 		}
 	}

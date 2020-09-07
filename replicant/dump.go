@@ -52,6 +52,7 @@ func NewResponseFrom(conn net.Conn, r *http.Request) (*http.Response,error) {
 	return http.ReadResponse(bufio.NewReader(conn),r)
 }
 
+// 也可以用httputil下的Dump调用来搞
 func DumpResponse(w *http.Response) ([]byte, error) {
 	return httputil.DumpResponse(w,true)
 }
