@@ -98,17 +98,7 @@ func (this *CertificateAuthority) ToTLSCertificate(cert *Certificate) (tls.Certi
 
 func (this *CertificateAuthority) createCertificateFor(issuer *x509.Certificate, pk *PrivateKey, organization string, isCA bool) Factory {
 	return func(host string) (*Certificate, error) {
-		template := &x509.Certificate{
-			SerialNumber: new(big.Int).SetInt64(int64(time.Now().UnixNano())),
-			Subject: pkix.Name{
-				Organization: []string{organization},
-				CommonName:   host,
-			},
-			DNSNames:  []string{host},
-			NotBefore: time.Now().AddDate(0, -1, 0),
-			NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-			KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		}
+		template := this.createTemplateFor(organization, host)
 		if ip := net.ParseIP(host); ip != nil {
 			template.IPAddresses = []net.IP{ip}
 		}
