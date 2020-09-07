@@ -2,14 +2,21 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="be731725-a7ed-438b-80f2-0deaf0df1d0b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/connection/connection.go" beforeDir="false" afterPath="$PROJECT_DIR$/connection/connection.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/replicant/dump.go" beforeDir="false" afterPath="$PROJECT_DIR$/replicant/dump.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/common/pipeline.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/middleware/httpchunked.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -18,6 +25,8 @@
     <ConfirmationsSetting value="2" id="Add" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
+    <property name="DefaultGoTemplateProperty" value="Go File" />
     <property name="settings.editor.selected.configurable" value="go.vgo" />
   </component>
   <component name="VgoProject">
@@ -28,5 +37,9 @@
       <screen x="0" y="0" width="1792" height="1120" />
     </state>
     <state x="397" y="199" key="SettingsEditor/0.0.1792.1120@0.0.1792.1120" timestamp="1599373126252" />
+    <state x="626" y="310" width="540" height="524" key="StructurePopup" timestamp="1599483156811">
+      <screen x="0" y="0" width="1792" height="1120" />
+    </state>
+    <state x="626" y="310" width="540" height="524" key="StructurePopup/1792.0.2560.1440/0.0.1792.1120@0.0.1792.1120" timestamp="1599483156811" />
   </component>
 </project>
