@@ -13,7 +13,7 @@ func main() {
 		FullTimestamp: false,
 	})
 	c := &decoder.RuntimeConfig{
-		Port: "8080",
+		Port: "8000",
 	}
 	tlsConfig := decoder.NewDefaultTLSConfig()
 	interceptor := connection.NewInterceptor(c, tlsConfig)
@@ -21,5 +21,7 @@ func main() {
 		Addr:    ":" + c.Port,
 		Handler: interceptor,
 	}
-	s.ListenAndServe()
+	if err := s.ListenAndServe(); err != nil {
+		panic(err)
+	}
 }

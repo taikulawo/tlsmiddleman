@@ -1,5 +1,5 @@
 tlsdecode.exe
 tlsedcode
 private.key
-x509cert.cert
+x509cert.crt
 tlsmiddleman

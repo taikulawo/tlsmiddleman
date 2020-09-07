@@ -81,7 +81,12 @@ func (this *CertificateAuthority) LoadCertificateFromFile(path string) (*Certifi
 	if err != nil {
 		return nil, err
 	}
-	cert, err := x509.ParseCertificate(certBytes)
+	// cert文件可以同时放证书和密钥
+	// 这样我们读取cert解析证书就需要找到证书的block
+	// 借助pem.decode找到第一个Block，由于我们的cert只有证书
+	// 那这个block就是证书block
+	block, _ := pem.Decode(certBytes)
+	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +119,7 @@ func (this *CertificateAuthority) createCertificateFor(issuer *x509.Certificate,
 		if isSelfSign {
 			template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth | x509.ExtKeyUsageClientAuth}
 			issuer = template
+			clientPair = this.privateKey
 		}
 		return this.doCreateCertificate(template, issuer, clientPair, pk)
 	}
@@ -148,6 +154,7 @@ func (this *CertificateAuthority) createTemplateFor(organization string, dnsName
 		NotBefore: time.Now().AddDate(0, -1, 0),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
 		KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
 	}
 }
 

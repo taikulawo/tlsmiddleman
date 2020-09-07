@@ -45,7 +45,7 @@ func NewDefaultTLSConfig() *TLSConfig {
 	return &TLSConfig{
 		RsaKeyPair:            nil,
 		CAPrivateKeyFilePath:  "private.key",
-		CACertificateFilePath: "x509cert.cert",
+		CACertificateFilePath: "x509cert.crt",
 		Organization:          "bytejump",
 		CommonName:            "www.bytejump.com",
 		ServerTLSConfig:       NewDefaultServerTlsConfig(),
