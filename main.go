@@ -18,7 +18,7 @@ func main() {
 	tlsConfig := decoder.NewDefaultTLSConfig()
 	interceptor := connection.NewInterceptor(c, tlsConfig)
 	s := &http.Server{
-		Addr:    ":" + c.Port,
+		Addr:    "localhost:" + c.Port,
 		Handler: interceptor,
 	}
 	if err := s.ListenAndServe(); err != nil {

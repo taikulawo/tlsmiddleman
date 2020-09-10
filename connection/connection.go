@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -20,6 +21,7 @@ func NewConnectionHandler(w http.ResponseWriter, r *http.Request, interceptor *I
 		conn,
 		w,
 		r,
+		false,
 	}
 }
 
@@ -28,11 +30,13 @@ type Handler struct {
 	conn        net.Conn
 	response    http.ResponseWriter
 	request     *http.Request
+	isHttps     bool
 }
 
 func (this *Handler) TLSHandshake() {
+	this.isHttps = true
 	tlsConfig := decoder.NewDefaultServerTlsConfig()
-	cert, err := this.interceptor.CA.Sign(this.request.Host)
+	cert, err := this.interceptor.CA.Sign(strings.Split(this.request.Host, ":")[0])
 	if err != nil {
 		logrus.Errorln(err)
 		return
@@ -57,7 +61,7 @@ func (this *Handler) TLSHandshake() {
 // 如果是HTTP直接转发就行
 // ResponseWriter 和 Request 都放在 this 上
 func (this *Handler) Pipe() {
-	remote := <- this.connectToRemote()
+	remote := <-this.connectToRemote()
 	if remote == nil {
 		fmt.Println("Connect to remote failed, return")
 		return
@@ -79,7 +83,7 @@ func (this *Handler) Pipe() {
 			}
 			respChan <- b1[:]
 			remote.Write(b1)
-		case b2 := <- chan2:
+		case b2 := <-chan2:
 			if b2 == nil {
 				return
 			}
@@ -89,25 +93,28 @@ func (this *Handler) Pipe() {
 	}
 }
 
-func (this Handler) connectToRemote() <- chan net.Conn{
-	c := make(chan net.Conn,1)
+func (this Handler) connectToRemote() <-chan net.Conn {
+	c := make(chan net.Conn, 1)
 	go func() {
-		target := this.request.URL.Host
-		port := this.request.URL.Port()
-		if strings.Contains(target,":") {
-			target += ":"+port
-		}
 		var conn net.Conn
 		var err error
-		if port == "443" {
-			conn, err = tls.Dial("tcp",target, decoder.NewDefaultServerTlsConfig())
+		target := this.request.URL.Host
+		matched, _ := regexp.MatchString(":[0-9]+$", target)
+		if this.isHttps {
+			if !matched {
+				target += ":443"
+			}
+			conn, err = tls.Dial("tcp", target, decoder.NewDefaultServerTlsConfig())
 			if err != nil {
 				logrus.Errorln(err)
 				c <- nil
 				return
 			}
-		}else {
-			conn, err = net.DialTimeout("tcp",target, time.Second * 60)
+		} else {
+			if !matched {
+				target += ":80"
+			}
+			conn, err = net.DialTimeout("tcp", target, time.Second*60)
 			if err != nil {
 				logrus.Errorln(err)
 				c <- nil

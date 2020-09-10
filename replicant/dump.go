@@ -17,6 +17,7 @@ import (
 func Dump() (requestChan chan []byte, responseChan chan []byte) {
 	requestChan = make(chan []byte)
 	reqC := make(chan *http.Request, 2)
+	// 这里有问题，写到这里的数据没有返回，导致client发的数据没有写入remote
 	go func() {
 		for {
 			reader := common.NewReaderHelper(requestChan)
@@ -25,34 +26,34 @@ func Dump() (requestChan chan []byte, responseChan chan []byte) {
 			if err != nil {
 				return
 			}
-			fmt.Printf("Request: Header: %s\n",req.Header)
+			fmt.Printf("Request: Header: %s\n", req.Header)
 		}
 	}()
 	responseChan = make(chan []byte)
 	go func() {
 		for {
 			reader := common.NewReaderHelper(responseChan)
-			req := <- reqC
-			resp, err := http.ReadResponse(bufio.NewReader(reader),req)
+			req := <-reqC
+			resp, err := http.ReadResponse(bufio.NewReader(reader), req)
 			if err != nil {
 				logrus.Errorln(err)
 				return
 			}
-			fmt.Printf("Response: Header: %s",resp.Header)
+			fmt.Printf("Response: Header: %s", resp.Header)
 		}
 	}()
 	return
 }
 
-func DumpRequest(r *http.Request) ([]byte,error) {
+func DumpRequest(r *http.Request) ([]byte, error) {
 	return httputil.DumpRequest(r, true)
 }
 
-func NewResponseFrom(conn net.Conn, r *http.Request) (*http.Response,error) {
-	return http.ReadResponse(bufio.NewReader(conn),r)
+func NewResponseFrom(conn net.Conn, r *http.Request) (*http.Response, error) {
+	return http.ReadResponse(bufio.NewReader(conn), r)
 }
 
 // 也可以用httputil下的Dump调用来搞
 func DumpResponse(w *http.Response) ([]byte, error) {
-	return httputil.DumpResponse(w,true)
+	return httputil.DumpResponse(w, true)
 }
