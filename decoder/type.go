@@ -37,6 +37,7 @@ func NewDefaultServerTlsConfig() *tls.Config {
 			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 		},
 		PreferServerCipherSuites: true,
+		//InsecureSkipVerify: true,
 	}
 }
 

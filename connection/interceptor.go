@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/iamwwc/tlsmiddleman/decoder"
+	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 )
@@ -19,7 +20,12 @@ func (this *Interceptor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		this.PerformTLSHandshake(w, r)
 		return
 	}
-	go NewConnectionHandler(w, r, this, nil).Pipe()
+	conn, err := this.Hijacker(w)
+	if err != nil {
+		logrus.Errorln(err)
+		return
+	}
+	go NewConnectionHandler(w, r, this, conn).Pipe()
 }
 
 func (this *Interceptor) PerformTLSHandshake(w http.ResponseWriter, r *http.Request) {
