@@ -117,7 +117,7 @@ func (this *CertificateAuthority) createCertificateFor(issuer *x509.Certificate,
 			return nil, err
 		}
 		if isSelfSign {
-			template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth , x509.ExtKeyUsageClientAuth}
+			template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 			issuer = template
 			// 替换为CA自己的PK
 			clientPair = this.privateKey
@@ -151,10 +151,10 @@ func (this *CertificateAuthority) createTemplateFor(organization string, dnsName
 			Organization: []string{organization},
 			CommonName:   dnsName,
 		},
-		DNSNames:  []string{dnsName},
-		NotBefore: time.Now().AddDate(0, -1, 0),
-		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
-		KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		DNSNames:              []string{dnsName},
+		NotBefore:             time.Now().AddDate(0, -1, 0),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 365),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,
 	}
 }

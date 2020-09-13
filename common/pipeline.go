@@ -1,7 +1,7 @@
 package common
 
 type Callable interface {
-	Call(data[]byte, next Callable) error
+	Call(data []byte, next Callable) error
 }
 
 func Compose(middlewares []Callable) func([]byte, Callable) error {
@@ -11,6 +11,6 @@ func Compose(middlewares []Callable) func([]byte, Callable) error {
 		if index == len(middlewares) {
 			fn = next
 		}
-		return fn.Call(data,middlewares[index + 1])
+		return fn.Call(data, middlewares[index+1])
 	}
 }

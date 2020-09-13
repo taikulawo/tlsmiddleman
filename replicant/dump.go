@@ -15,8 +15,8 @@ import (
 // 利用现成的*http.Request和http.ResponseWriter配置DumpResponse，DumpRequest搞
 // https://golang.org/pkg/net/http/httputil/#DumpRequest
 func Dump() (requestChan chan []byte, responseChan chan []byte) {
-	requestChan = make(chan []byte)
-	reqC := make(chan *http.Request, 2)
+	requestChan = make(chan []byte, 100)
+	reqC := make(chan *http.Request, 100)
 	// 这里有问题，写到这里的数据没有返回，导致client发的数据没有写入remote
 	go func() {
 		for {
@@ -29,7 +29,7 @@ func Dump() (requestChan chan []byte, responseChan chan []byte) {
 			fmt.Printf("Request: Header: %s\n", req.Header)
 		}
 	}()
-	responseChan = make(chan []byte)
+	responseChan = make(chan []byte, 100)
 	go func() {
 		for {
 			reader := common.NewReaderHelper(responseChan)

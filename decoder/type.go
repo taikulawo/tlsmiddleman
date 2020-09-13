@@ -50,6 +50,6 @@ func NewDefaultTLSConfig() *TLSConfig {
 		Organization:          "bytejump",
 		CommonName:            "www.bytejump.com",
 		ServerTLSConfig:       NewDefaultServerTlsConfig(),
-		KeyLen: 4096,
+		KeyLen:                4096,
 	}
 }

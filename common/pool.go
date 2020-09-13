@@ -1,13 +1,11 @@
 package common
 
 type BytePool struct {
-	w int
+	w    int
 	wcap int
-	c chan []byte
+	c    chan []byte
 }
 
 func (this *BytePool) Get() []byte {
-	select {
-	
-	}
+	select {}
 }
