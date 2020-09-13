@@ -117,8 +117,9 @@ func (this *CertificateAuthority) createCertificateFor(issuer *x509.Certificate,
 			return nil, err
 		}
 		if isSelfSign {
-			template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth | x509.ExtKeyUsageClientAuth}
+			template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth , x509.ExtKeyUsageClientAuth}
 			issuer = template
+			// 替换为CA自己的PK
 			clientPair = this.privateKey
 		}
 		return this.doCreateCertificate(template, issuer, clientPair, pk)
