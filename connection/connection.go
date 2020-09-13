@@ -1,6 +1,8 @@
 package connection
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/iamwwc/tlsmiddleman/common"
@@ -10,6 +12,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -19,6 +23,7 @@ func NewConnectionHandler(w http.ResponseWriter, r *http.Request, interceptor *I
 	return &Handler{
 		interceptor,
 		conn,
+		nil,
 		w,
 		r,
 		false,
@@ -28,6 +33,7 @@ func NewConnectionHandler(w http.ResponseWriter, r *http.Request, interceptor *I
 type Handler struct {
 	interceptor *Interceptor
 	conn        net.Conn
+	remote net.Conn
 	response    http.ResponseWriter
 	request     *http.Request
 	isHttps     bool
@@ -49,6 +55,7 @@ func (this *Handler) TLSHandshake() {
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
 	tlsConn := tls.Server(this.conn, tlsConfig)
 	this.conn = tlsConn
+
 	if err := tlsConn.Handshake(); err != nil {
 		logrus.Errorln(err)
 		return
@@ -63,14 +70,63 @@ func (this *Handler) TLSHandshake() {
 func (this *Handler) Pipe() {
 	remote := <-this.connectToRemote()
 	if remote == nil {
-		fmt.Println("Connect to remote failed, return")
+		this.conn.Close()
+		logrus.Debugln("Connect to remote failed, return")
 		return
 	}
+	this.remote = remote
+	this.HttpAndHttpsPipe()
+	// 针对数据流的Pipe
+	//this.StreamPipe()
+}
+
+func (this *Handler) HttpAndHttpsPipe() {
+	if this.isHttps{
+		httpHandler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			this.HTTPPipe(writer,request)
+		})
+		if err := http.Serve(this,httpHandler); err != nil {
+			logrus.Debugln(err)
+		}
+		return
+	}
+	this.HTTPPipe(this.response, this.request)
+}
+
+func (this *Handler) HTTPPipe(w http.ResponseWriter, r *http.Request)  {
+	// dump http request and http response
+	go func() {
+		reqDump, err  := httputil.DumpRequest(r,true)
+		if err != nil {
+			logrus.Debugln(err)
+		}
+		this.remote.Write(reqDump)
+	}()
+	respFromRemote, err := http.ReadResponse(bufio.NewReader(this.remote),r)
+	if err != nil {
+		return
+	}
+	respDumped, err := httputil.DumpResponse(respFromRemote,true)
+	reqConn, err := this.interceptor.Hijacker(w)
+	reqConn.Write(respDumped)
+	go func() {
+		buffer := bytes.Buffer{}
+		buffer.WriteString(fmt.Sprintf("Request-Host:%s\n",r.Host))
+		buffer.WriteString(fmt.Sprintf("Response-Headers:\n"))
+		buffer.WriteString(fmt.Sprintf("--------------------------\n\n"))
+		for k,v := range respFromRemote.Header{
+			buffer.WriteString(fmt.Sprintf("%s:%s\n",k,v))
+		}
+		fmt.Fprint(os.Stdout,buffer.String())
+	}()
+}
+
+func (this *Handler) StreamPipe() {
 	chan1 := common.ChannelFromConn(this.conn)
-	chan2 := common.ChannelFromConn(remote)
+	chan2 := common.ChannelFromConn(this.remote)
 	reqChan, respChan := replicant.Dump()
 	defer func() {
-		remote.Close()
+		this.remote.Close()
 		this.conn.Close()
 		reqChan <- nil
 		respChan <- nil
@@ -82,7 +138,7 @@ func (this *Handler) Pipe() {
 				return
 			}
 			respChan <- b1[:]
-			remote.Write(b1)
+			this.remote.Write(b1)
 		case b2 := <-chan2:
 			if b2 == nil {
 				return
@@ -136,7 +192,7 @@ func (this *Handler) Accept() (net.Conn, error) {
 }
 
 func (this *Handler) Close() error {
-	return this.conn.Close()
+	return nil
 }
 
 func (this *Handler) Addr() net.Addr {

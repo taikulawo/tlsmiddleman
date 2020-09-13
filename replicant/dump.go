@@ -34,6 +34,10 @@ func Dump() (requestChan chan []byte, responseChan chan []byte) {
 		for {
 			reader := common.NewReaderHelper(responseChan)
 			req := <-reqC
+			// malformed-http-status-code-error 有可能是由HTTP2导致
+			// HTTP2数据并不会保证头部先来
+			// 需要使用http2包处理
+			// 即使这里出错但由于数据并行处理，数据还是能正常传输
 			resp, err := http.ReadResponse(bufio.NewReader(reader), req)
 			if err != nil {
 				logrus.Errorln(err)
