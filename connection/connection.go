@@ -33,7 +33,7 @@ func NewConnectionHandler(w http.ResponseWriter, r *http.Request, interceptor *I
 type Handler struct {
 	interceptor *Interceptor
 	conn        net.Conn
-	remote net.Conn
+	remote      net.Conn
 	response    http.ResponseWriter
 	request     *http.Request
 	isHttps     bool
@@ -81,11 +81,11 @@ func (this *Handler) Pipe() {
 }
 
 func (this *Handler) HttpAndHttpsPipe() {
-	if this.isHttps{
+	if this.isHttps {
 		httpHandler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			this.HTTPPipe(writer,request)
+			this.HTTPPipe(writer, request)
 		})
-		if err := http.Serve(this,httpHandler); err != nil {
+		if err := http.Serve(this, httpHandler); err != nil {
 			logrus.Debugln(err)
 		}
 		return
@@ -93,31 +93,33 @@ func (this *Handler) HttpAndHttpsPipe() {
 	this.HTTPPipe(this.response, this.request)
 }
 
-func (this *Handler) HTTPPipe(w http.ResponseWriter, r *http.Request)  {
+func (this *Handler) HTTPPipe(w http.ResponseWriter, r *http.Request) {
 	// dump http request and http response
 	go func() {
-		reqDump, err  := httputil.DumpRequest(r,true)
+		reqDump, err := httputil.DumpRequest(r, true)
 		if err != nil {
 			logrus.Debugln(err)
 		}
 		this.remote.Write(reqDump)
 	}()
-	respFromRemote, err := http.ReadResponse(bufio.NewReader(this.remote),r)
+	// 我看了一下ReadResponse的源代码。
+	// 虽然参数要求Request，但如果我们只是为了要Response的值的话Request设置为nil就可以
+	respFromRemote, err := http.ReadResponse(bufio.NewReader(this.remote), r)
 	if err != nil {
 		return
 	}
-	respDumped, err := httputil.DumpResponse(respFromRemote,true)
+	respDumped, err := httputil.DumpResponse(respFromRemote, true)
 	reqConn, err := this.interceptor.Hijacker(w)
 	reqConn.Write(respDumped)
 	go func() {
 		buffer := bytes.Buffer{}
-		buffer.WriteString(fmt.Sprintf("Request-Host:%s\n",r.Host))
+		buffer.WriteString(fmt.Sprintf("Request-Host:%s\n", r.Host))
 		buffer.WriteString(fmt.Sprintf("Response-Headers:\n"))
 		buffer.WriteString(fmt.Sprintf("--------------------------\n\n"))
-		for k,v := range respFromRemote.Header{
-			buffer.WriteString(fmt.Sprintf("%s:%s\n",k,v))
+		for k, v := range respFromRemote.Header {
+			buffer.WriteString(fmt.Sprintf("%s:%s\n", k, v))
 		}
-		fmt.Fprint(os.Stdout,buffer.String())
+		fmt.Fprint(os.Stdout, buffer.String())
 	}()
 }
 
