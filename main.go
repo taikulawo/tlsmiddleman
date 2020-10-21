@@ -12,6 +12,7 @@ func main() {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: false,
 	})
+	logrus.SetLevel(logrus.DebugLevel)
 	c := &decoder.RuntimeConfig{
 		Port: "8000",
 	}
@@ -21,6 +22,7 @@ func main() {
 		Addr:    "localhost:" + c.Port,
 		Handler: interceptor,
 	}
+	logrus.Infof("Listen at %s",c.Port)
 	if err := s.ListenAndServe(); err != nil {
 		panic(err)
 	}

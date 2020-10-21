@@ -58,6 +58,7 @@ func (this *Handler) TLSHandshake() {
 
 	if err := tlsConn.Handshake(); err != nil {
 		logrus.Errorln(err)
+		this.Destroy()
 		return
 	}
 	go this.Pipe()
@@ -112,7 +113,12 @@ func (this *Handler) HTTPPipe(w http.ResponseWriter, r *http.Request) {
 	}
 	respDumped, err := httputil.DumpResponse(respFromRemote, true)
 	reqConn, err := this.interceptor.Hijacker(w)
+	if reqConn == nil{
+		this.Destroy()
+		return
+	}
 	if _, err := reqConn.Write(respDumped);err != nil {
+		this.Destroy()
 		return
 	}
 	go func() {
@@ -126,7 +132,16 @@ func (this *Handler) HTTPPipe(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(os.Stdout, buffer.String())
 	}()
 }
-
+func (this *Handler) Destroy() {
+	if this.conn != nil {
+		this.conn.Close()
+	}
+	if this.remote != nil {
+		this.remote.Close()
+	}
+	// close tls server
+	this.Close()
+}
 func (this *Handler) StreamPipe() {
 	chan1 := common.ChannelFromConn(this.conn)
 	chan2 := common.ChannelFromConn(this.remote)
