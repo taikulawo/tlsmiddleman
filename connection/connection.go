@@ -100,7 +100,9 @@ func (this *Handler) HTTPPipe(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logrus.Debugln(err)
 		}
-		this.remote.Write(reqDump)
+		if _, err := this.remote.Write(reqDump); err != nil {
+			return
+		}
 	}()
 	// 我看了一下ReadResponse的源代码。
 	// 虽然参数要求Request，但如果我们只是为了要Response的值的话Request设置为nil就可以
@@ -110,7 +112,9 @@ func (this *Handler) HTTPPipe(w http.ResponseWriter, r *http.Request) {
 	}
 	respDumped, err := httputil.DumpResponse(respFromRemote, true)
 	reqConn, err := this.interceptor.Hijacker(w)
-	reqConn.Write(respDumped)
+	if _, err := reqConn.Write(respDumped);err != nil {
+		return
+	}
 	go func() {
 		buffer := bytes.Buffer{}
 		buffer.WriteString(fmt.Sprintf("Request-Host:%s\n", r.Host))
